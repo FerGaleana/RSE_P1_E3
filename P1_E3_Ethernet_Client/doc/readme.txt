@@ -17,7 +17,7 @@ Hardware requirements
 =====================
 - Mini/micro USB cable
 - RJ45 Network cable
-- FRDM-K64F board
+- FRDM-K66F board
 - Personal Computer
 
 Board settings

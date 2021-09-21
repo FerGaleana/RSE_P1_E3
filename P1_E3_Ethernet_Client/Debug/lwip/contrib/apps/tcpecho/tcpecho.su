@@ -1,0 +1,2 @@
+tcpecho.c:59:1:tcpecho_thread	56	static
+tcpecho.c:118:1:tcpecho_init	16	static

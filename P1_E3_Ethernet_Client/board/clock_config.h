@@ -19,7 +19,7 @@
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
-#define BOARD_XTAL0_CLK_HZ                         50000000U  /*!< Board xtal0 frequency in Hz */
+#define BOARD_XTAL0_CLK_HZ                         12000000U  /*!< Board xtal0 frequency in Hz */
 
 /*******************************************************************************
  ************************ BOARD_InitBootClocks function ************************
@@ -40,25 +40,25 @@ void BOARD_InitBootClocks(void);
 #endif /* __cplusplus*/
 
 /*******************************************************************************
- ********************** Configuration BOARD_BootClockRUN ***********************
+ ********************* Configuration BOARD_BootClockHSRUN **********************
  ******************************************************************************/
 /*******************************************************************************
- * Definitions for BOARD_BootClockRUN configuration
+ * Definitions for BOARD_BootClockHSRUN configuration
  ******************************************************************************/
-#define BOARD_BOOTCLOCKRUN_CORE_CLOCK             120000000U  /*!< Core clock frequency: 120000000Hz */
+#define BOARD_BOOTCLOCKHSRUN_CORE_CLOCK           180000000U  /*!< Core clock frequency: 180000000Hz */
 
-/*! @brief MCG set for BOARD_BootClockRUN configuration.
+/*! @brief MCG set for BOARD_BootClockHSRUN configuration.
  */
-extern const mcg_config_t mcgConfig_BOARD_BootClockRUN;
-/*! @brief SIM module set for BOARD_BootClockRUN configuration.
+extern const mcg_config_t mcgConfig_BOARD_BootClockHSRUN;
+/*! @brief SIM module set for BOARD_BootClockHSRUN configuration.
  */
-extern const sim_clock_config_t simConfig_BOARD_BootClockRUN;
-/*! @brief OSC set for BOARD_BootClockRUN configuration.
+extern const sim_clock_config_t simConfig_BOARD_BootClockHSRUN;
+/*! @brief OSC set for BOARD_BootClockHSRUN configuration.
  */
-extern const osc_config_t oscConfig_BOARD_BootClockRUN;
+extern const osc_config_t oscConfig_BOARD_BootClockHSRUN;
 
 /*******************************************************************************
- * API for BOARD_BootClockRUN configuration
+ * API for BOARD_BootClockHSRUN configuration
  ******************************************************************************/
 #if defined(__cplusplus)
 extern "C" {
@@ -68,7 +68,7 @@ extern "C" {
  * @brief This function executes configuration of clocks.
  *
  */
-void BOARD_BootClockRUN(void);
+void BOARD_BootClockHSRUN(void);
 
 #if defined(__cplusplus)
 }
@@ -104,6 +104,41 @@ extern "C" {
  *
  */
 void BOARD_BootClockVLPR(void);
+
+#if defined(__cplusplus)
+}
+#endif /* __cplusplus*/
+
+/*******************************************************************************
+ ********************** Configuration BOARD_BootClockRUN ***********************
+ ******************************************************************************/
+/*******************************************************************************
+ * Definitions for BOARD_BootClockRUN configuration
+ ******************************************************************************/
+#define BOARD_BOOTCLOCKRUN_CORE_CLOCK             120000000U  /*!< Core clock frequency: 120000000Hz */
+
+/*! @brief MCG set for BOARD_BootClockRUN configuration.
+ */
+extern const mcg_config_t mcgConfig_BOARD_BootClockRUN;
+/*! @brief SIM module set for BOARD_BootClockRUN configuration.
+ */
+extern const sim_clock_config_t simConfig_BOARD_BootClockRUN;
+/*! @brief OSC set for BOARD_BootClockRUN configuration.
+ */
+extern const osc_config_t oscConfig_BOARD_BootClockRUN;
+
+/*******************************************************************************
+ * API for BOARD_BootClockRUN configuration
+ ******************************************************************************/
+#if defined(__cplusplus)
+extern "C" {
+#endif /* __cplusplus*/
+
+/*!
+ * @brief This function executes configuration of clocks.
+ *
+ */
+void BOARD_BootClockRUN(void);
 
 #if defined(__cplusplus)
 }

@@ -58,8 +58,8 @@
 
 /*! @name Driver version */
 /*@{*/
-/*! @brief CLOCK driver version 2.5.1. */
-#define FSL_CLOCK_DRIVER_VERSION (MAKE_VERSION(2, 5, 1))
+/*! @brief CLOCK driver version 2.5.2. */
+#define FSL_CLOCK_DRIVER_VERSION (MAKE_VERSION(2, 5, 2))
 /*@}*/
 
 /*! @brief External XTAL0 (OSC0) clock frequency.
@@ -100,9 +100,8 @@ extern volatile uint32_t g_xtal32Freq;
 
 /* Definition for delay API in clock driver, users can redefine it to the real application. */
 #ifndef SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY
-#define SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY (120000000UL)
+#define SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY (180000000UL)
 #endif
-
 /*! @brief Clock ip name array for DMAMUX. */
 #define DMAMUX_CLOCKS  \
     {                  \
@@ -137,6 +136,18 @@ extern volatile uint32_t g_xtal32Freq;
 #define FLEXBUS_CLOCKS  \
     {                   \
         kCLOCK_Flexbus0 \
+    }
+
+/*! @brief Clock ip name array for TSI. */
+#define TSI_CLOCKS  \
+    {               \
+        kCLOCK_Tsi0 \
+    }
+
+/*! @brief Clock ip name array for LPUART. */
+#define LPUART_CLOCKS  \
+    {                  \
+        kCLOCK_Lpuart0 \
     }
 
 /*! @brief Clock ip name array for EWM. */
@@ -182,9 +193,9 @@ extern volatile uint32_t g_xtal32Freq;
     }
 
 /*! @brief Clock ip name array for FLEXCAN. */
-#define FLEXCAN_CLOCKS  \
-    {                   \
-        kCLOCK_Flexcan0 \
+#define FLEXCAN_CLOCKS                   \
+    {                                    \
+        kCLOCK_Flexcan0, kCLOCK_Flexcan1 \
     }
 
 /*! @brief Clock ip name array for DAC. */
@@ -197,6 +208,12 @@ extern volatile uint32_t g_xtal32Freq;
 #define ADC16_CLOCKS             \
     {                            \
         kCLOCK_Adc0, kCLOCK_Adc1 \
+    }
+
+/*! @brief Clock ip name array for SDRAM. */
+#define SDRAM_CLOCKS   \
+    {                  \
+        kCLOCK_Sdramc0 \
     }
 
 /*! @brief Clock ip name array for MPU. */
@@ -218,9 +235,15 @@ extern volatile uint32_t g_xtal32Freq;
     }
 
 /*! @brief Clock ip name array for UART. */
-#define UART_CLOCKS                                                                        \
-    {                                                                                      \
-        kCLOCK_Uart0, kCLOCK_Uart1, kCLOCK_Uart2, kCLOCK_Uart3, kCLOCK_Uart4, kCLOCK_Uart5 \
+#define UART_CLOCKS                                                          \
+    {                                                                        \
+        kCLOCK_Uart0, kCLOCK_Uart1, kCLOCK_Uart2, kCLOCK_Uart3, kCLOCK_Uart4 \
+    }
+
+/*! @brief Clock ip name array for TPM. */
+#define TPM_CLOCKS                                 \
+    {                                              \
+        kCLOCK_IpInvalid, kCLOCK_Tpm1, kCLOCK_Tpm2 \
     }
 
 /*! @brief Clock ip name array for RNGA. */
@@ -236,9 +259,9 @@ extern volatile uint32_t g_xtal32Freq;
     }
 
 /*! @brief Clock ip name array for I2C. */
-#define I2C_CLOCKS                            \
-    {                                         \
-        kCLOCK_I2c0, kCLOCK_I2c1, kCLOCK_I2c2 \
+#define I2C_CLOCKS                                         \
+    {                                                      \
+        kCLOCK_I2c0, kCLOCK_I2c1, kCLOCK_I2c2, kCLOCK_I2c3 \
     }
 
 /*! @brief Clock ip name array for PDB. */
@@ -254,9 +277,9 @@ extern volatile uint32_t g_xtal32Freq;
     }
 
 /*! @brief Clock ip name array for CMP. */
-#define CMP_CLOCKS                            \
-    {                                         \
-        kCLOCK_Cmp0, kCLOCK_Cmp1, kCLOCK_Cmp2 \
+#define CMP_CLOCKS                                         \
+    {                                                      \
+        kCLOCK_Cmp0, kCLOCK_Cmp1, kCLOCK_Cmp2, kCLOCK_Cmp3 \
     }
 
 /*!
@@ -271,6 +294,7 @@ extern volatile uint32_t g_xtal32Freq;
 #define I2C0_CLK_SRC BUS_CLK
 #define I2C1_CLK_SRC BUS_CLK
 #define I2C2_CLK_SRC BUS_CLK
+#define I2C3_CLK_SRC BUS_CLK
 #define DSPI0_CLK_SRC BUS_CLK
 #define DSPI1_CLK_SRC BUS_CLK
 #define DSPI2_CLK_SRC BUS_CLK
@@ -279,7 +303,6 @@ extern volatile uint32_t g_xtal32Freq;
 #define UART2_CLK_SRC BUS_CLK
 #define UART3_CLK_SRC BUS_CLK
 #define UART4_CLK_SRC BUS_CLK
-#define UART5_CLK_SRC BUS_CLK
 
 /*! @brief Clock name used to get clock frequency. */
 typedef enum _clock_name
@@ -319,9 +342,27 @@ typedef enum _clock_name
 typedef enum _clock_usb_src
 {
     kCLOCK_UsbSrcPll0   = SIM_SOPT2_USBSRC(1U) | SIM_SOPT2_PLLFLLSEL(1U), /*!< Use PLL0.      */
+    kCLOCK_UsbSrcUsbPfd = SIM_SOPT2_USBSRC(1U) | SIM_SOPT2_PLLFLLSEL(2U), /*!< Use USBPFDCLK. */
     kCLOCK_UsbSrcIrc48M = SIM_SOPT2_USBSRC(1U) | SIM_SOPT2_PLLFLLSEL(3U), /*!< Use IRC48M.    */
-    kCLOCK_UsbSrcExt    = SIM_SOPT2_USBSRC(0U)                            /*!< Use USB_CLKIN. */
+    kCLOCK_UsbSrcExt    = SIM_SOPT2_USBSRC(0U),                           /*!< Use USB_CLKIN. */
+    kCLOCK_UsbSrcUnused = (int)0xFFFFFFFFU,                               /*!< Used when the function does not
+                                                                          care the clock source. */
 } clock_usb_src_t;
+
+/*! @brief Source of the USB HS PHY. */
+typedef enum _clock_usb_phy_src
+{
+    kCLOCK_UsbPhySrcExt = 0U, /*!< Use external crystal. */
+} clock_usb_phy_src_t;
+
+/*! @brief Source of the USB HS PFD clock (USB1PFDCLK) */
+typedef enum _clock_usb_pfd_src
+{
+    kCLOCK_UsbPfdSrcExt        = 0U, /*!< Use external crystal. */
+    kCLOCK_UsbPfdSrcFracDivBy4 = 1U, /*!< Use PFD_FRAC output divided by 4. */
+    kCLOCK_UsbPfdSrcFracDivBy2 = 2U, /*!< Use PFD_FRAC output divided by 2. */
+    kCLOCK_UsbPfdSrcFrac       = 3U, /*!< Use PFD_FRAC output. */
+} clock_usb_pfd_src_t;
 
 /*------------------------------------------------------------------------------
 
@@ -333,9 +374,9 @@ typedef enum _clock_usb_src
  -----------------------------------------------------------------
 
  For example, the SDHC clock gate is controlled by SIM_SCGC3[17], the
- SIM_SCGC3 offset in SIM is 0x1030, then kCLOCK_GateSdhc0 is defined as
+ SIM_SCGC3 offset in SIM is 0x1030, then kClockGateSdhc0 is defined as
 
-              kCLOCK_GateSdhc0 = (0x1030 << 16) | 17;
+              kClockGateSdhc0 = (0x1030 << 16) | 17;
 
 ------------------------------------------------------------------------------*/
 
@@ -356,17 +397,25 @@ typedef enum _clock_ip_name
 {
     kCLOCK_IpInvalid = 0U,
     kCLOCK_I2c2      = CLK_GATE_DEFINE(0x1028U, 6U),
+    kCLOCK_I2c3      = CLK_GATE_DEFINE(0x1028U, 7U),
     kCLOCK_Uart4     = CLK_GATE_DEFINE(0x1028U, 10U),
-    kCLOCK_Uart5     = CLK_GATE_DEFINE(0x1028U, 11U),
 
-    kCLOCK_Enet0 = CLK_GATE_DEFINE(0x102CU, 0U),
-    kCLOCK_Dac0  = CLK_GATE_DEFINE(0x102CU, 12U),
-    kCLOCK_Dac1  = CLK_GATE_DEFINE(0x102CU, 13U),
+    kCLOCK_Enet0   = CLK_GATE_DEFINE(0x102CU, 0U),
+    kCLOCK_Lpuart0 = CLK_GATE_DEFINE(0x102CU, 4U),
+    kCLOCK_Tpm1    = CLK_GATE_DEFINE(0x102CU, 9U),
+    kCLOCK_Tpm2    = CLK_GATE_DEFINE(0x102CU, 10U),
+    kCLOCK_Dac0    = CLK_GATE_DEFINE(0x102CU, 12U),
+    kCLOCK_Dac1    = CLK_GATE_DEFINE(0x102CU, 13U),
 
-    kCLOCK_Spi2  = CLK_GATE_DEFINE(0x1030U, 12U),
-    kCLOCK_Sdhc0 = CLK_GATE_DEFINE(0x1030U, 17U),
-    kCLOCK_Ftm3  = CLK_GATE_DEFINE(0x1030U, 25U),
-    kCLOCK_Adc1  = CLK_GATE_DEFINE(0x1030U, 27U),
+    kCLOCK_Rnga0     = CLK_GATE_DEFINE(0x1030U, 0U),
+    kCLOCK_Usbhs0    = CLK_GATE_DEFINE(0x1030U, 1U),
+    kCLOCK_UsbhsPhy0 = CLK_GATE_DEFINE(0x1030U, 2U),
+    kCLOCK_UsbhsDcd0 = CLK_GATE_DEFINE(0x1030U, 3U),
+    kCLOCK_Flexcan1  = CLK_GATE_DEFINE(0x1030U, 4U),
+    kCLOCK_Spi2      = CLK_GATE_DEFINE(0x1030U, 12U),
+    kCLOCK_Sdhc0     = CLK_GATE_DEFINE(0x1030U, 17U),
+    kCLOCK_Ftm3      = CLK_GATE_DEFINE(0x1030U, 25U),
+    kCLOCK_Adc1      = CLK_GATE_DEFINE(0x1030U, 27U),
 
     kCLOCK_Ewm0   = CLK_GATE_DEFINE(0x1034U, 1U),
     kCLOCK_Cmt0   = CLK_GATE_DEFINE(0x1034U, 2U),
@@ -380,9 +429,11 @@ typedef enum _clock_ip_name
     kCLOCK_Cmp0   = CLK_GATE_DEFINE(0x1034U, 19U),
     kCLOCK_Cmp1   = CLK_GATE_DEFINE(0x1034U, 19U),
     kCLOCK_Cmp2   = CLK_GATE_DEFINE(0x1034U, 19U),
+    kCLOCK_Cmp3   = CLK_GATE_DEFINE(0x1034U, 19U),
     kCLOCK_Vref0  = CLK_GATE_DEFINE(0x1034U, 20U),
 
     kCLOCK_Lptmr0 = CLK_GATE_DEFINE(0x1038U, 0U),
+    kCLOCK_Tsi0   = CLK_GATE_DEFINE(0x1038U, 5U),
     kCLOCK_PortA  = CLK_GATE_DEFINE(0x1038U, 9U),
     kCLOCK_PortB  = CLK_GATE_DEFINE(0x1038U, 10U),
     kCLOCK_PortC  = CLK_GATE_DEFINE(0x1038U, 11U),
@@ -392,7 +443,6 @@ typedef enum _clock_ip_name
     kCLOCK_Ftf0     = CLK_GATE_DEFINE(0x103CU, 0U),
     kCLOCK_Dmamux0  = CLK_GATE_DEFINE(0x103CU, 1U),
     kCLOCK_Flexcan0 = CLK_GATE_DEFINE(0x103CU, 4U),
-    kCLOCK_Rnga0    = CLK_GATE_DEFINE(0x103CU, 9U),
     kCLOCK_Spi0     = CLK_GATE_DEFINE(0x103CU, 12U),
     kCLOCK_Spi1     = CLK_GATE_DEFINE(0x103CU, 13U),
     kCLOCK_Sai0     = CLK_GATE_DEFINE(0x103CU, 15U),
@@ -409,14 +459,17 @@ typedef enum _clock_ip_name
     kCLOCK_Flexbus0 = CLK_GATE_DEFINE(0x1040U, 0U),
     kCLOCK_Dma0     = CLK_GATE_DEFINE(0x1040U, 1U),
     kCLOCK_Sysmpu0  = CLK_GATE_DEFINE(0x1040U, 2U),
+    kCLOCK_Sdramc0  = CLK_GATE_DEFINE(0x1040U, 3U),
 } clock_ip_name_t;
 
 /*!@brief SIM configuration structure for clock setting. */
 typedef struct _sim_clock_config
 {
-    uint8_t pllFllSel; /*!< PLL/FLL/IRC48M selection.    */
-    uint8_t er32kSrc;  /*!< ERCLK32K source selection.   */
-    uint32_t clkdiv1;  /*!< SIM_CLKDIV1.                 */
+    uint8_t pllFllSel;  /*!< PLL/FLL/IRC48M selection.         */
+    uint8_t pllFllDiv;  /*!< PLLFLLSEL clock divider divisor.  */
+    uint8_t pllFllFrac; /*!< PLLFLLSEL clock divider fraction. */
+    uint8_t er32kSrc;   /*!< ERCLK32K source selection.        */
+    uint32_t clkdiv1;   /*!< SIM_CLKDIV1.                      */
 } sim_clock_config_t;
 
 /*! @brief OSC work mode. */
@@ -462,6 +515,7 @@ typedef struct _oscer_config
 {
     uint8_t enableMode; /*!< OSCERCLK enable mode. OR'ed value of @ref _oscer_enable_mode. */
 
+    uint8_t erclkDiv; /*!< Divider for OSCERCLK.*/
 } oscer_config_t;
 
 /*!
@@ -544,8 +598,8 @@ typedef enum _mcg_oscsel
 /*! @brief MCG PLLCS select */
 typedef enum _mcg_pll_clk_select
 {
-    kMCG_PllClkSelPll0, /*!< PLL0 output clock is selected  */
-    kMCG_PllClkSelPll1  /* PLL1 output clock is selected    */
+    kMCG_PllClkSelPll0,  /*!< PLL0 output clock is selected  */
+    kMCG_PllClkSelExtPll /* The external PLL clock is selected   */
 } mcg_pll_clk_select_t;
 
 /*! @brief MCG clock monitor mode. */
@@ -578,6 +632,7 @@ enum
     kMCG_RtcOscLostFlag = (1U << 4U), /*!< RTC OSC lost.      */
     kMCG_Pll0LostFlag   = (1U << 5U), /*!< PLL0 lost.         */
     kMCG_Pll0LockFlag   = (1U << 6U), /*!< PLL0 locked.       */
+    kMCG_ExtPllLostFlag = (1U << 9U), /*!< External PLL lost. */
 };
 
 /*! @brief MCG internal reference clock (MCGIRCLK) enable mode definition. Enumeration _mcg_irclk_enable_mode */
@@ -649,6 +704,8 @@ typedef struct _mcg_config
 
     /* ------------------------ MCG PLL settings ------------------------- */
     mcg_pll_config_t pll0Config; /*!< MCGPLL0CLK configuration.   */
+
+    mcg_pll_clk_select_t pllcs; /*!< PLL select as output, PLLCS.*/
 
 } mcg_config_t;
 
@@ -723,23 +780,49 @@ static inline void CLOCK_SetRmii0Clock(uint32_t src)
 }
 
 /*!
+ * @brief Set LPUART clock source.
+ *
+ * @param src The value to set LPUART clock source.
+ */
+static inline void CLOCK_SetLpuartClock(uint32_t src)
+{
+    SIM->SOPT2 = ((SIM->SOPT2 & ~SIM_SOPT2_LPUARTSRC_MASK) | SIM_SOPT2_LPUARTSRC(src));
+}
+
+/*!
+ * @brief Set TPM clock source.
+ *
+ * @param src The value to set TPM clock source.
+ */
+static inline void CLOCK_SetTpmClock(uint32_t src)
+{
+    SIM->SOPT2 = ((SIM->SOPT2 & ~SIM_SOPT2_TPMSRC_MASK) | SIM_SOPT2_TPMSRC(src));
+}
+
+/*!
  * @brief Set debug trace clock source.
  *
  * @param src The value to set debug trace clock source.
+ * @param divValue  PLLFLL clock divider divisor.
+ * @param fracValue PLLFLL clock divider fraction.
  */
-static inline void CLOCK_SetTraceClock(uint32_t src)
+static inline void CLOCK_SetTraceClock(uint32_t src, uint32_t divValue, uint32_t fracValue)
 {
-    SIM->SOPT2 = ((SIM->SOPT2 & ~SIM_SOPT2_TRACECLKSEL_MASK) | SIM_SOPT2_TRACECLKSEL(src));
+    SIM->SOPT2   = ((SIM->SOPT2 & ~SIM_SOPT2_TRACECLKSEL_MASK) | SIM_SOPT2_TRACECLKSEL(src));
+    SIM->CLKDIV4 = SIM_CLKDIV4_TRACEDIV(divValue) | SIM_CLKDIV4_TRACEFRAC(fracValue);
 }
 
 /*!
  * @brief Set PLLFLLSEL clock source.
  *
- * @param src The value to set PLLFLLSEL clock source.
+ * @param src       The value to set PLLFLLSEL clock source.
+ * @param divValue  PLLFLL clock divider divisor.
+ * @param fracValue PLLFLL clock divider fraction.
  */
-static inline void CLOCK_SetPllFllSelClock(uint32_t src)
+static inline void CLOCK_SetPllFllSelClock(uint32_t src, uint32_t divValue, uint32_t fracValue)
 {
-    SIM->SOPT2 = ((SIM->SOPT2 & ~SIM_SOPT2_PLLFLLSEL_MASK) | SIM_SOPT2_PLLFLLSEL(src));
+    SIM->SOPT2   = ((SIM->SOPT2 & ~SIM_SOPT2_PLLFLLSEL_MASK) | SIM_SOPT2_PLLFLLSEL(src));
+    SIM->CLKDIV3 = SIM_CLKDIV3_PLLFLLDIV(divValue) | SIM_CLKDIV3_PLLFLLFRAC(fracValue);
 }
 
 /*!
@@ -761,6 +844,65 @@ static inline void CLOCK_SetRtcClkOutClock(uint32_t src)
 {
     SIM->SOPT2 = ((SIM->SOPT2 & ~SIM_SOPT2_RTCCLKOUTSEL_MASK) | SIM_SOPT2_RTCCLKOUTSEL(src));
 }
+
+/*! @brief Enable USB HS clock.
+ *
+ * This function only enables the access to USB HS prepheral, upper layer
+ * should first call the @ref CLOCK_EnableUsbhs0PhyPllClock to enable the PHY
+ * clock to use USB HS.
+ *
+ * @param src  USB HS does not care about the clock source, here must be @ref kCLOCK_UsbSrcUnused.
+ * @param freq USB HS does not care about the clock source, so this parameter is ignored.
+ * @retval true The clock is set successfully.
+ * @retval false The clock source is invalid to get proper USB HS clock.
+ */
+bool CLOCK_EnableUsbhs0Clock(clock_usb_src_t src, uint32_t freq);
+
+/*! @brief Disable USB HS clock.
+ *
+ * Disable USB HS clock, this function should not be called after
+ * @ref CLOCK_DisableUsbhs0PhyPllClock.
+ */
+void CLOCK_DisableUsbhs0Clock(void);
+
+/*! @brief Enable USB HS PHY PLL clock.
+ *
+ * This function enables the internal 480MHz USB PHY PLL clock.
+ *
+ * @param src  USB HS PHY PLL clock source.
+ * @param freq The frequency specified by src.
+ * @retval true The clock is set successfully.
+ * @retval false The clock source is invalid to get proper USB HS clock.
+ */
+bool CLOCK_EnableUsbhs0PhyPllClock(clock_usb_phy_src_t src, uint32_t freq);
+
+/*! @brief Disable USB HS PHY PLL clock.
+ *
+ * This function disables USB HS PHY PLL clock.
+ */
+void CLOCK_DisableUsbhs0PhyPllClock(void);
+
+/*! @brief Enable USB HS PFD clock.
+ *
+ * This function enables USB HS PFD clock. It should be called after function
+ * @ref CLOCK_EnableUsbhs0PhyPllClock.
+ * The PFD output clock is selected by the parameter @p src. When the @p src is
+ * @ref kCLOCK_UsbPfdSrcExt, then the PFD outout is from external crystal
+ * directly, in this case, the @p frac is not used. In other cases, the PFD_FRAC
+ * output clock frequency is 480MHz*18/frac, the PFD output frequency is based
+ * on the PFD_FRAC output.
+ *
+ * @param frac The value set to PFD_FRAC, it must be in the range of 18 to 35.
+ * @param src Source of the USB HS PFD clock (USB1PFDCLK).
+ */
+void CLOCK_EnableUsbhs0PfdClock(uint8_t frac, clock_usb_pfd_src_t src);
+
+/*! @brief Disable USB HS PFD clock.
+ *
+ * This function disables USB HS PFD clock. It should be called before function
+ * @ref CLOCK_DisableUsbhs0PhyPllClock.
+ */
+void CLOCK_DisableUsbhs0PfdClock(void);
 
 /*! @brief Enable USB FS clock.
  *
@@ -868,6 +1010,20 @@ uint32_t CLOCK_GetEr32kClkFreq(void);
 uint32_t CLOCK_GetOsc0ErClkFreq(void);
 
 /*!
+ * @brief Get the OSC0 external reference divided clock frequency.
+ *
+ * @return Clock frequency in Hz.
+ */
+uint32_t CLOCK_GetOsc0ErClkDivFreq(void);
+
+/*!
+ * @brief Get the OSC0 external reference undivided clock frequency (OSC0ERCLK_UNDIV).
+ *
+ * @return Clock frequency in Hz.
+ */
+uint32_t CLOCK_GetOsc0ErClkUndivFreq(void);
+
+/*!
  * @brief Set the clock configure in SIM module.
  *
  * This function sets system layer clock settings in SIM module.
@@ -888,7 +1044,7 @@ void CLOCK_SetSimConfig(sim_clock_config_t const *config);
  */
 static inline void CLOCK_SetSimSafeDivs(void)
 {
-    SIM->CLKDIV1 = 0x01240000U;
+    SIM->CLKDIV1 = 0x02260000U;
 }
 
 /*! @name MCG frequency functions. */
@@ -944,6 +1100,27 @@ uint32_t CLOCK_GetFixedFreqClkFreq(void);
  * @return The frequency of MCGPLL0CLK.
  */
 uint32_t CLOCK_GetPll0Freq(void);
+
+/*!
+ * @brief Gets the MCG external PLL frequency.
+ *
+ * This function gets the MCG external PLL frequency in Hz.
+ *
+ * @return The frequency of the MCG external PLL.
+ */
+uint32_t CLOCK_GetExtPllFreq(void);
+
+/*!
+ * @brief Sets the MCG external PLL frequency.
+ *
+ * This function sets the MCG external PLL frequency in Hz. The MCG external PLL
+ * frequency is passed to the MCG driver using this function. Call this
+ * function after the external PLL frequency is changed. Otherwise, the APIs, which are used to get
+ * the frequency, may return an incorrect value.
+ *
+ * @param freq The frequency of MCG external PLL.
+ */
+void CLOCK_SetExtPllFreq(uint32_t freq);
 
 /*@}*/
 
@@ -1057,6 +1234,16 @@ static inline void CLOCK_DisablePll0(void)
  */
 uint32_t CLOCK_CalcPllDiv(uint32_t refFreq, uint32_t desireFreq, uint8_t *prdiv, uint8_t *vdiv);
 
+/*!
+ * @brief Set the PLL selection.
+ *
+ * This function sets the PLL selection between PLL0/PLL1/EXTPLL, and waits for
+ * change finished.
+ *
+ * @param pllcs The PLL to select.
+ */
+void CLOCK_SetPllClkSel(mcg_pll_clk_select_t pllcs);
+
 /*@}*/
 
 /*! @name MCG clock lock monitor functions. */
@@ -1088,6 +1275,16 @@ void CLOCK_SetRtcOscMonitorMode(mcg_monitor_mode_t mode);
  * @param mode Monitor mode to set.
  */
 void CLOCK_SetPll0MonitorMode(mcg_monitor_mode_t mode);
+
+/*!
+ * @brief Sets the external PLL clock monitor mode.
+ *
+ * This function ets the external PLL clock monitor mode. See @ref mcg_monitor_mode_t
+ * for details.
+ *
+ * @param mode Monitor mode to set.
+ */
+void CLOCK_SetExtPllMonitorMode(mcg_monitor_mode_t mode);
 
 /*!
  * @brief Gets the MCG status flags.
@@ -1170,6 +1367,8 @@ static inline void OSC_SetExtRefClkConfig(OSC_Type *base, oscer_config_t const *
     reg |= config->enableMode;
 
     base->CR = reg;
+
+    base->DIV = OSC_DIV_ERPS(config->erclkDiv);
 }
 
 /*!

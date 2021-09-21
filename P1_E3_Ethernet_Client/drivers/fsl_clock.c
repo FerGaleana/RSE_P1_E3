@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2015, Freescale Semiconductor, Inc.
- * Copyright 2016 - 2019, NXP
+ * Copyright 2016 - 2020, NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -74,6 +74,8 @@
 #define SIM_CLKDIV1_OUTDIV4_VAL ((SIM->CLKDIV1 & SIM_CLKDIV1_OUTDIV4_MASK) >> SIM_CLKDIV1_OUTDIV4_SHIFT)
 #define SIM_SOPT1_OSC32KSEL_VAL ((SIM->SOPT1 & SIM_SOPT1_OSC32KSEL_MASK) >> SIM_SOPT1_OSC32KSEL_SHIFT)
 #define SIM_SOPT2_PLLFLLSEL_VAL ((SIM->SOPT2 & SIM_SOPT2_PLLFLLSEL_MASK) >> SIM_SOPT2_PLLFLLSEL_SHIFT)
+#define SIM_CLKDIV3_PLLFLLDIV_VAL ((SIM->CLKDIV3 & SIM_CLKDIV3_PLLFLLDIV_MASK) >> SIM_CLKDIV3_PLLFLLDIV_SHIFT)
+#define SIM_CLKDIV3_PLLFLLFRAC_VAL ((SIM->CLKDIV3 & SIM_CLKDIV3_PLLFLLFRAC_MASK) >> SIM_CLKDIV3_PLLFLLFRAC_SHIFT)
 
 /* MCG_S_CLKST definition. */
 enum _mcg_clkout_stat
@@ -99,6 +101,8 @@ enum _mcg_pllst
 static uint32_t s_slowIrcFreq = 32768U;
 /* Fast internal reference clock frequency. */
 static uint32_t s_fastIrcFreq = 4000000U;
+/* The MCG external PLL clock frequency. */
+static uint32_t s_extPllFreq = 0U;
 
 /* External XTAL0 (OSC0) clock frequency. */
 volatile uint32_t g_xtal0Freq;
@@ -346,11 +350,11 @@ static uint8_t CLOCK_GetOscRangeFromFreq(uint32_t freq)
 }
 
 /*!
- * brief Get the OSC0 external reference clock frequency (OSC0ERCLK).
+ * brief Get the OSC0 external reference undivided clock frequency (OSC0ERCLK_UNDIV).
  *
  * return Clock frequency in Hz.
  */
-uint32_t CLOCK_GetOsc0ErClkFreq(void)
+uint32_t CLOCK_GetOsc0ErClkUndivFreq(void)
 {
     uint32_t freq;
     if ((OSC0->CR & OSC_CR_ERCLKEN_MASK) != 0U)
@@ -363,7 +367,29 @@ uint32_t CLOCK_GetOsc0ErClkFreq(void)
     {
         freq = 0U;
     }
+    return freq;
+}
 
+/*!
+ * brief Get the OSC0 external reference divided clock frequency.
+ *
+ * return Clock frequency in Hz.
+ */
+uint32_t CLOCK_GetOsc0ErClkDivFreq(void)
+{
+    uint32_t freq;
+    uint8_t temp;
+    if ((OSC0->CR & OSC_CR_ERCLKEN_MASK) != 0U)
+    {
+        /* Please call CLOCK_SetXtal0Freq base on board setting before using OSC0 clock. */
+        assert(g_xtal0Freq);
+        temp = OSC0->DIV & OSC_DIV_ERPS_MASK;
+        freq = g_xtal0Freq >> ((temp) >> OSC_DIV_ERPS_SHIFT);
+    }
+    else
+    {
+        freq = 0U;
+    }
     return freq;
 }
 
@@ -379,7 +405,7 @@ uint32_t CLOCK_GetEr32kClkFreq(void)
     switch (SIM_SOPT1_OSC32KSEL_VAL)
     {
         case 0U: /* OSC 32k clock  */
-            freq = (CLOCK_GetOsc0ErClkFreq() == 32768U) ? 32768U : 0U;
+            freq = (CLOCK_GetOsc0ErClkDivFreq() == 32768U) ? 32768U : 0U;
             break;
         case 2U: /* RTC 32k clock  */
             /* Please call CLOCK_SetXtal32Freq base on board setting before using XTAL32K/RTC_CLKIN clock. */
@@ -413,6 +439,9 @@ uint32_t CLOCK_GetPllFllSelClkFreq(void)
         case 1U: /* PLL. */
             freq = CLOCK_GetPll0Freq();
             break;
+        case 2U: /* USB1 PFD */
+            freq = CLOCK_GetExtPllFreq();
+            break;
         case 3U: /* MCG IRC48M. */
             freq = MCG_INTERNAL_IRC_48M;
             break;
@@ -421,7 +450,18 @@ uint32_t CLOCK_GetPllFllSelClkFreq(void)
             break;
     }
 
-    return freq;
+    freq *= (SIM_CLKDIV3_PLLFLLFRAC_VAL + 1U);
+    return freq / (SIM_CLKDIV3_PLLFLLDIV_VAL + 1U);
+}
+
+/*!
+ * brief Get the OSC0 external reference clock frequency (OSC0ERCLK).
+ *
+ * return Clock frequency in Hz.
+ */
+uint32_t CLOCK_GetOsc0ErClkFreq(void)
+{
+    return CLOCK_GetOsc0ErClkDivFreq();
 }
 
 /*!
@@ -510,7 +550,10 @@ uint32_t CLOCK_GetFreq(clock_name_t clockName)
             freq = CLOCK_GetEr32kClkFreq();
             break;
         case kCLOCK_Osc0ErClk:
-            freq = CLOCK_GetOsc0ErClkFreq();
+            freq = CLOCK_GetOsc0ErClkDivFreq();
+            break;
+        case kCLOCK_Osc0ErClkUndiv:
+            freq = CLOCK_GetOsc0ErClkUndivFreq();
             break;
         case kCLOCK_McgFixedFreqClk:
             freq = CLOCK_GetFixedFreqClkFreq();
@@ -548,7 +591,7 @@ uint32_t CLOCK_GetFreq(clock_name_t clockName)
 void CLOCK_SetSimConfig(sim_clock_config_t const *config)
 {
     SIM->CLKDIV1 = config->clkdiv1;
-    CLOCK_SetPllFllSelClock(config->pllFllSel);
+    CLOCK_SetPllFllSelClock(config->pllFllSel, config->pllFllDiv, config->pllFllFrac);
     CLOCK_SetEr32kClock(config->er32kSrc);
 }
 
@@ -561,6 +604,9 @@ void CLOCK_SetSimConfig(sim_clock_config_t const *config)
  */
 bool CLOCK_EnableUsbfs0Clock(clock_usb_src_t src, uint32_t freq)
 {
+    /* In current implementation, USBPFDCLK is not used for USB FS. */
+    assert(kCLOCK_UsbSrcUsbPfd != src);
+
     bool ret = true;
 
     CLOCK_DisableClock(kCLOCK_Usbfs0);
@@ -603,6 +649,178 @@ bool CLOCK_EnableUsbfs0Clock(clock_usb_src_t src, uint32_t freq)
     return ret;
 }
 
+/*! brief Enable USB HS clock.
+ *
+ * This function only enables the access to USB HS prepheral, upper layer
+ * should first call the ref CLOCK_EnableUsbhs0PhyPllClock to enable the PHY
+ * clock to use USB HS.
+ *
+ * param src  USB HS does not care about the clock source, here must be ref kCLOCK_UsbSrcUnused.
+ * param freq USB HS does not care about the clock source, so this parameter is ignored.
+ * retval true The clock is set successfully.
+ * retval false The clock source is invalid to get proper USB HS clock.
+ */
+bool CLOCK_EnableUsbhs0Clock(clock_usb_src_t src, uint32_t freq)
+{
+    /* Source and freq are not used for USB HS. */
+    src  = src;
+    freq = freq;
+
+    SIM->SCGC3 |= SIM_SCGC3_USBHS_MASK;
+
+    SIM->USBPHYCTL = ((SIM->USBPHYCTL & ~(SIM_USBPHYCTL_USB3VOUTTRG_MASK)) | SIM_USBPHYCTL_USB3VOUTTRG(6U) /* 3.310V */
+                      | SIM_USBPHYCTL_USBVREGSEL_MASK); /* VREG_IN1 */
+
+    USBPHY->PLL_SIC |= USBPHY_PLL_SIC_PLL_EN_USB_CLKS_MASK; /* Enable USB clock output from USB PHY PLL */
+
+    return true;
+}
+
+/*! brief Disable USB HS clock.
+ *
+ * Disable USB HS clock, this function should not be called after
+ * ref CLOCK_DisableUsbhs0PhyPllClock.
+ */
+void CLOCK_DisableUsbhs0Clock(void)
+{
+    USBPHY->PLL_SIC &= ~USBPHY_PLL_SIC_PLL_EN_USB_CLKS_MASK; /* Disable USB clock output from USB PHY PLL */
+    SIM->SCGC3 &= ~SIM_SCGC3_USBHS_MASK;
+}
+
+/*! brief Enable USB HS PHY PLL clock.
+ *
+ * This function enables the internal 480MHz USB PHY PLL clock.
+ *
+ * param src  USB HS PHY PLL clock source.
+ * param freq The frequency specified by src.
+ * retval true The clock is set successfully.
+ * retval false The clock source is invalid to get proper USB HS clock.
+ */
+bool CLOCK_EnableUsbhs0PhyPllClock(clock_usb_phy_src_t src, uint32_t freq)
+{
+    volatile uint32_t i;
+    uint32_t phyPllDiv = 0U;
+
+    /*
+     * In order to bring up the internal 480MHz USB PLL clock, should make sure:
+     * 1. 32kHz IRC clock enable by setting IRCLKEN bit in MCG_C1 register.
+     * 2. External reference clock enable on XTAL by setting ERCLKEN bit in OSC_CR register.
+     */
+    assert(MCG->C1 & MCG_C1_IRCLKEN_MASK);
+    assert((MCG->C2 & MCG_C2_IRCS_MASK) == 0U);
+    assert(OSC0->CR & OSC_CR_ERCLKEN_MASK);
+
+    if (24000000U == freq)
+    {
+        phyPllDiv = USBPHY_PLL_SIC_PLL_DIV_SEL(0U);
+    }
+    else if (16000000U == freq)
+    {
+        phyPllDiv = USBPHY_PLL_SIC_PLL_DIV_SEL(1U);
+    }
+    else if (12000000U == freq)
+    {
+        phyPllDiv = USBPHY_PLL_SIC_PLL_DIV_SEL(2U);
+    }
+    else
+    {
+        return false;
+    }
+
+    /* Source and freq are not used for USB HS. */
+    src = src;
+
+    SIM->SCGC3 |= SIM_SCGC3_USBHSPHY_MASK;
+    SIM->SOPT2 |= SIM_SOPT2_USBREGEN_MASK;
+
+    i = 500000U;
+    while ((i--) != 0UL)
+    {
+        __NOP();
+    }
+
+    USBPHY->TRIM_OVERRIDE_EN = 0x01U;                 /* Override the trim. */
+    USBPHY->CTRL &= ~USBPHY_CTRL_SFTRST_MASK;         /* release PHY from reset */
+    USBPHY->PLL_SIC |= USBPHY_PLL_SIC_PLL_POWER_MASK; /* power up PLL */
+    USBPHY->PLL_SIC = (USBPHY->PLL_SIC & ~USBPHY_PLL_SIC_PLL_DIV_SEL_MASK) | phyPllDiv;
+    USBPHY->PLL_SIC &= ~USBPHY_PLL_SIC_PLL_BYPASS_MASK; /* Clear bypass bit */
+    USBPHY->CTRL &= ~USBPHY_CTRL_CLKGATE_MASK;          /* Clear to 0U to run clocks */
+
+    /* Wait for lock. */
+    while ((USBPHY->PLL_SIC & USBPHY_PLL_SIC_PLL_LOCK_MASK) == 0UL)
+    {
+    }
+
+    return true;
+}
+
+/*! brief Disable USB HS PHY PLL clock.
+ *
+ * This function disables USB HS PHY PLL clock.
+ */
+void CLOCK_DisableUsbhs0PhyPllClock(void)
+{
+    USBPHY->CTRL |= USBPHY_CTRL_CLKGATE_MASK;          /* Set to 1U to gate clocks */
+    USBPHY->PLL_SIC &= ~USBPHY_PLL_SIC_PLL_POWER_MASK; /* Power down PLL */
+    SIM->SOPT2 &= ~SIM_SOPT2_USBREGEN_MASK;
+    SIM->SCGC3 &= ~SIM_SCGC3_USBHSPHY_MASK;
+}
+
+/*! brief Enable USB HS PFD clock.
+ *
+ * This function enables USB HS PFD clock. It should be called after function
+ * ref CLOCK_EnableUsbhs0PhyPllClock.
+ * The PFD output clock is selected by the parameter p src. When the p src is
+ * ref kCLOCK_UsbPfdSrcExt, then the PFD outout is from external crystal
+ * directly, in this case, the p frac is not used. In other cases, the PFD_FRAC
+ * output clock frequency is 480MHz*18/frac, the PFD output frequency is based
+ * on the PFD_FRAC output.
+ *
+ * param frac The value set to PFD_FRAC, it must be in the range of 18 to 35.
+ * param src Source of the USB HS PFD clock (USB1PFDCLK).
+ */
+void CLOCK_EnableUsbhs0PfdClock(uint8_t frac, clock_usb_pfd_src_t src)
+{
+    assert((frac <= 35U) && (frac >= 18U));
+    uint32_t fracFreq = (480000U * 18U / frac) * 1000U;
+
+    USBPHY->ANACTRL = (USBPHY->ANACTRL & ~(USBPHY_ANACTRL_PFD_FRAC_MASK | USBPHY_ANACTRL_PFD_CLK_SEL_MASK)) |
+                      (USBPHY_ANACTRL_PFD_FRAC(frac) | USBPHY_ANACTRL_PFD_CLK_SEL(src));
+
+    USBPHY->ANACTRL &= ~USBPHY_ANACTRL_PFD_CLKGATE_MASK;
+    while ((USBPHY->ANACTRL & USBPHY_ANACTRL_PFD_STABLE_MASK) == 0U)
+    {
+    }
+
+    if (kCLOCK_UsbPfdSrcExt == src)
+    {
+        s_extPllFreq = g_xtal0Freq;
+    }
+    else if (kCLOCK_UsbPfdSrcFracDivBy4 == src)
+    {
+        s_extPllFreq = fracFreq / 4U;
+    }
+    else if (kCLOCK_UsbPfdSrcFracDivBy2 == src)
+    {
+        s_extPllFreq = fracFreq / 2U;
+    }
+    else
+    {
+        s_extPllFreq = fracFreq;
+    }
+}
+
+/*! brief Disable USB HS PFD clock.
+ *
+ * This function disables USB HS PFD clock. It should be called before function
+ * ref CLOCK_DisableUsbhs0PhyPllClock.
+ */
+void CLOCK_DisableUsbhs0PfdClock(void)
+{
+    USBPHY->ANACTRL |= USBPHY_ANACTRL_PFD_CLKGATE_MASK;
+    s_extPllFreq = 0U;
+}
+
 /*!
  * brief Gets the MCG output clock (MCGOUTCLK) frequency.
  *
@@ -614,12 +832,24 @@ bool CLOCK_EnableUsbfs0Clock(clock_usb_src_t src, uint32_t freq)
 uint32_t CLOCK_GetOutClkFreq(void)
 {
     uint32_t mcgoutclk;
-    uint32_t clkst = (uint32_t)MCG_S_CLKST_VAL;
+    uint32_t clkst  = (uint32_t)MCG_S_CLKST_VAL;
+    uint32_t pllcst = MCG_S2_PLLCST_VAL;
 
     switch (clkst)
     {
         case (uint32_t)kMCG_ClkOutStatPll:
-            mcgoutclk = CLOCK_GetPll0Freq();
+            switch (pllcst)
+            {
+                case (uint32_t)kMCG_PllClkSelExtPll:
+                    mcgoutclk = CLOCK_GetExtPllFreq();
+                    break;
+                case (uint32_t)kMCG_PllClkSelPll0:
+                    mcgoutclk = CLOCK_GetPll0Freq();
+                    break;
+                default:
+                    mcgoutclk = 0U;
+                    break;
+            }
             break;
         case (uint32_t)kMCG_ClkOutStatFll:
             mcgoutclk = CLOCK_GetFllFreq();
@@ -765,10 +995,38 @@ uint32_t CLOCK_GetPll0Freq(void)
         mcgpll0vdiv = ((uint8_t)FSL_FEATURE_MCG_PLL_VDIV_BASE + MCG_C6_VDIV0_VAL);
         mcgpll0clk *= (uint32_t)mcgpll0vdiv;
 
+        mcgpll0clk >>= 1UL;
         freq = mcgpll0clk;
     }
 
     return freq;
+}
+
+/*!
+ * brief Gets the MCG external PLL frequency.
+ *
+ * This function gets the MCG external PLL frequency in Hz.
+ *
+ * return The frequency of the MCG external PLL.
+ */
+uint32_t CLOCK_GetExtPllFreq(void)
+{
+    return s_extPllFreq;
+}
+
+/*!
+ * brief Sets the MCG external PLL frequency.
+ *
+ * This function sets the MCG external PLL frequency in Hz. The MCG external PLL
+ * frequency is passed to the MCG driver using this function. Call this
+ * function after the external PLL frequency is changed. Otherwise, the APIs, which are used to get
+ * the frequency, may return an incorrect value.
+ *
+ * param The frequency of MCG external PLL.
+ */
+void CLOCK_SetExtPllFreq(uint32_t freq)
+{
+    s_extPllFreq = freq;
 }
 
 /*!
@@ -939,6 +1197,8 @@ uint32_t CLOCK_CalcPllDiv(uint32_t refFreq, uint32_t desireFreq, uint8_t *prdiv,
     prdiv_min =
         (uint8_t)((refFreq + (uint32_t)FSL_FEATURE_MCG_PLL_REF_MAX - 1U) / (uint32_t)FSL_FEATURE_MCG_PLL_REF_MAX);
 
+    desireFreq *= 2U;
+
     /* PRDIV traversal. */
     for (prdiv_cur = prdiv_max; prdiv_cur >= prdiv_min; prdiv_cur--)
     {
@@ -962,7 +1222,7 @@ uint32_t CLOCK_CalcPllDiv(uint32_t refFreq, uint32_t desireFreq, uint8_t *prdiv,
             {
                 *prdiv = prdiv_cur - (uint8_t)FSL_FEATURE_MCG_PLL_PRDIV_BASE;
                 *vdiv  = vdiv_cur - (uint8_t)FSL_FEATURE_MCG_PLL_VDIV_BASE;
-                return ret_freq;
+                return ret_freq / 2U;
             }
             /* New PRDIV/VDIV is closer. */
             if (diff > desireFreq - ret_freq)
@@ -992,7 +1252,7 @@ uint32_t CLOCK_CalcPllDiv(uint32_t refFreq, uint32_t desireFreq, uint8_t *prdiv,
         *prdiv   = ret_prdiv - (uint8_t)FSL_FEATURE_MCG_PLL_PRDIV_BASE;
         *vdiv    = ret_vdiv - (uint8_t)FSL_FEATURE_MCG_PLL_VDIV_BASE;
         ret_freq = (refFreq / ret_prdiv) * ret_vdiv;
-        return ret_freq;
+        return ret_freq / 2U;
     }
     else
     {
@@ -1028,6 +1288,22 @@ void CLOCK_EnablePll0(mcg_pll_config_t const *config)
 
     /* Wait for PLL lock. */
     while (((MCG->S & MCG_S_LOCK0_MASK)) == 0U)
+    {
+    }
+}
+
+/*!
+ * brief Set the PLL selection.
+ *
+ * This function sets the PLL selection between PLL0/PLL1/EXTPLL, and waits for
+ * change finished.
+ *
+ * param pllcs The PLL to select.
+ */
+void CLOCK_SetPllClkSel(mcg_pll_clk_select_t pllcs)
+{
+    MCG->C11 = (uint8_t)(((MCG->C11 & ~MCG_C11_PLLCS_MASK)) | MCG_C11_PLLCS(pllcs));
+    while ((uint32_t)pllcs != MCG_S2_PLLCST_VAL)
     {
     }
 }
@@ -1124,6 +1400,31 @@ void CLOCK_SetPll0MonitorMode(mcg_monitor_mode_t mode)
 }
 
 /*!
+ * brief Sets the external PLL clock monitor mode.
+ *
+ * This function ets the external PLL clock monitor mode. See ref mcg_monitor_mode_t
+ * for details.
+ *
+ * param mode Monitor mode to set.
+ */
+void CLOCK_SetExtPllMonitorMode(mcg_monitor_mode_t mode)
+{
+    uint8_t mcg_c9 = MCG->C9;
+
+    mcg_c9 &= (uint8_t)(~(MCG_C9_PLL_LOCRE_MASK | MCG_C9_PLL_CME_MASK));
+
+    if (kMCG_MonitorNone != mode)
+    {
+        if (kMCG_MonitorReset == mode)
+        {
+            mcg_c9 |= MCG_C9_PLL_LOCRE_MASK;
+        }
+        mcg_c9 |= MCG_C9_PLL_CME_MASK;
+    }
+    MCG->C9 = mcg_c9;
+}
+
+/*!
  * brief Gets the MCG status flags.
  *
  * This function gets the MCG clock status flags. All status flags are
@@ -1174,6 +1475,10 @@ uint32_t CLOCK_GetStatusFlags(void)
     {
         ret |= (uint32_t)kMCG_Pll0LockFlag;
     }
+    if ((MCG->C9 & MCG_C9_EXT_PLL_LOCS_MASK) != 0U)
+    {
+        ret |= (uint32_t)kMCG_ExtPllLostFlag;
+    }
     return ret;
 }
 
@@ -1209,6 +1514,11 @@ void CLOCK_ClearStatusFlags(uint32_t mask)
     if ((mask & (uint32_t)kMCG_Pll0LostFlag) != 0UL)
     {
         MCG->S = MCG_S_LOLS0_MASK;
+    }
+    if ((mask & (uint32_t)kMCG_ExtPllLostFlag) != 0UL)
+    {
+        reg     = MCG->C9;
+        MCG->C9 = reg;
     }
 }
 
@@ -1894,7 +2204,11 @@ status_t CLOCK_SetBlpeMode(void)
  */
 status_t CLOCK_SetPbeMode(mcg_pll_clk_select_t pllcs, mcg_pll_config_t const *config)
 {
-    assert(config);
+    /* If external PLL is used, then the config could be NULL. */
+    if (kMCG_PllClkSelExtPll != pllcs)
+    {
+        assert(config);
+    }
 
     /*
        This function is designed to change MCG to PBE mode from PEE/BLPE/FBE,
@@ -1918,12 +2232,18 @@ status_t CLOCK_SetPbeMode(mcg_pll_clk_select_t pllcs, mcg_pll_config_t const *co
     }
 
     /* Configure the PLL. */
+    if (kMCG_PllClkSelPll0 == pllcs)
     {
         CLOCK_EnablePll0(config);
     }
 
     /* Change to PLL mode. */
     MCG->C6 |= MCG_C6_PLLS_MASK;
+
+    MCG->C11 = (uint8_t)(((MCG->C11 & ~MCG_C11_PLLCS_MASK)) | MCG_C11_PLLCS(pllcs));
+    while ((uint32_t)pllcs != MCG_S2_PLLCST_VAL)
+    {
+    }
 
     /* Wait for PLL mode changed. */
     while (((MCG->S & MCG_S_PLLST_MASK)) == 0U)
@@ -2175,7 +2495,11 @@ status_t CLOCK_BootToBlpeMode(mcg_oscsel_t oscsel)
  */
 status_t CLOCK_BootToPeeMode(mcg_oscsel_t oscsel, mcg_pll_clk_select_t pllcs, mcg_pll_config_t const *config)
 {
-    assert(config);
+    /* If external PLL is used, then the config could be NULL. */
+    if (kMCG_PllClkSelExtPll != pllcs)
+    {
+        assert(config);
+    }
 
     (void)CLOCK_SetExternalRefClkConfig(oscsel);
 
@@ -2238,7 +2562,7 @@ status_t CLOCK_SetMcgConfig(const mcg_config_t *config)
     mcg_mode_t next_mode;
     status_t status = kStatus_Success;
 
-    mcg_pll_clk_select_t pllcs = kMCG_PllClkSelPll0;
+    mcg_pll_clk_select_t pllcs = config->pllcs;
 
     /* If need to change external clock, MCG_C7[OSCSEL]. */
     if (MCG_C7_OSCSEL_VAL != (uint8_t)(config->oscsel))
@@ -2296,8 +2620,17 @@ status_t CLOCK_SetMcgConfig(const mcg_config_t *config)
                 /* If target mode is not PBE or PEE, then only need to set CLKS = EXT here. */
                 if ((kMCG_ModePEE == config->mcgMode) || (kMCG_ModePBE == config->mcgMode))
                 {
+                    if (kMCG_PllClkSelPll0 == pllcs)
                     {
                         status = CLOCK_SetPbeMode(pllcs, &config->pll0Config);
+                    }
+                    else if (kMCG_PllClkSelExtPll == pllcs)
+                    {
+                        status = CLOCK_SetPbeMode(pllcs, NULL);
+                    }
+                    else
+                    {
+                        /* Add comment to prevent the case of MISRA C-2012 rule 15.7 */
                     }
                 }
                 else

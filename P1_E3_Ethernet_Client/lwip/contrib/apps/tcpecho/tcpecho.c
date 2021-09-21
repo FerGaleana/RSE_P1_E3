@@ -48,10 +48,11 @@
 struct AES_ctx ctx;
 
 uint8_t key[]     = "aaaaaaaaaaaaaaaa";
-uint8_t Tx_msg[TOTAL_MSGS][16] = {{ '-','-','-','-','-','-','-','R','e','q','u','e','s','t','1','\0'},
+uint8_t Tx_msg[TOTAL_MSGS+1][16] = {{ '-','-','-','-','-','-','-','R','e','q','u','e','s','t','1','\0'},
 								{ '-','-','-','-','-','-','-','R','e','q','u','e','s','t','2','\0'},
 								{ '-','-','-','-','-','-','-','R','e','q','u','e','s','t','3','\0'},
-								{ '-','-','-','-','-','-','-','R','e','q','u','e','s','t','4','\0'}};
+								{ '-','-','-','-','-','-','-','R','e','q','u','e','s','t','4','\0'},
+								{ '-','-','-','-','-','-','-','R','e','q','u','e','s','t','5','\0'}};
 
 /*-----------------------------------------------------------------------------------*/
 static void
@@ -67,7 +68,7 @@ tcpecho_thread(void *arg)
   struct netbuf *buf;
   void *data;
   u16_t len;
-  u8_t msg_counter;
+  u8_t msg_counter = 0;
 
   /* Create a new connection identifier. */
   /* Bind connection to well known port number 7. */
@@ -86,15 +87,13 @@ tcpecho_thread(void *arg)
 	  //Connect
 	  err = netconn_connect(conn, &server_ipaddr, 7);	  	  	  	  	  					// connect()
 	  AES_init_ctx(&ctx, key);																// AES128
-	  for(msg_counter= 0; msg_counter<TOTAL_MSGS; msg_counter++)
-	  {
 		  if (err == ERR_OK) {
 			  PRINTF("Sent (normal) %u bytes: %s\n", sizeof(Tx_msg[msg_counter]),(char*)Tx_msg[msg_counter]);
 			  AES_ECB_encrypt(&ctx, Tx_msg[msg_counter]);						// AES128
 			  err = netconn_write(conn, (void*)Tx_msg[msg_counter], sizeof(Tx_msg[msg_counter]), NETCONN_COPY);			// write()
 			  PRINTF("Sent (enc) %u bytes: %.2x \n", sizeof(Tx_msg[msg_counter]), (uint8_t*)Tx_msg[msg_counter]);
 
-			  while((err = netconn_recv(conn, &buf)) == ERR_OK){
+			  while(((err = netconn_recv(conn, &buf)) == ERR_OK) && (TOTAL_MSGS > msg_counter)){
 			  do {
 				  netbuf_data(buf, &data, &len);											// read()
 				  PRINTF("Received (enc) %u bytes: %.2x \n",len,(uint8_t*)data);
@@ -102,18 +101,17 @@ tcpecho_thread(void *arg)
 				  PRINTF("Received (normal) %u bytes: %s \n", len, (char*)data);
 			  } while (netbuf_next(buf) >= 0);
 			  netbuf_delete(buf);
+			  msg_counter++;
+			  PRINTF("Sent (normal) %u bytes: %s\n", sizeof(Tx_msg[msg_counter]),(char*)Tx_msg[msg_counter]);
+			  AES_ECB_encrypt(&ctx, Tx_msg[msg_counter]);						// AES128
+			  err = netconn_write(conn, (void*)Tx_msg[msg_counter], sizeof(Tx_msg[msg_counter]), NETCONN_COPY);			// write()
+			  PRINTF("Sent (enc) %u bytes: %.2x \n", sizeof(Tx_msg[msg_counter]), (uint8_t*)Tx_msg[msg_counter]);
 		  }
+			  /* Close connection and discard connection identifier. */
+			  netconn_close(conn);																// close()
+			  netconn_delete(conn);
 	  }
-	  }
-	  /* Process the new connection. */
-
-	  /* Close connection and discard connection identifier. */
-	  if (err == ERR_OK)
-	  {
-		  netconn_close(conn);																// close()
-		  netconn_delete(conn);
-	  }
-  }
+}
 }
 /*-----------------------------------------------------------------------------------*/
 void
