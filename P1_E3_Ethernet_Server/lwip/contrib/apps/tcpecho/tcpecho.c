@@ -46,7 +46,13 @@ uint8_t Rx_msg1[] = { '-','-','-','-','-','-','-','-','-','R','e','p','l','y','1
 uint8_t Rx_msg2[] = { '-','-','-','-','-','-','-','-','-','R','e','p','l','y','2','\0'};
 uint8_t Rx_msg3[] = { '-','-','-','-','-','-','-','-','-','R','e','p','l','y','3','\0'};
 uint8_t Rx_msg4[] = { '-','-','-','-','-','-','-','-','-','R','e','p','l','y','4','\0'};
-uint8_t Inv_msg[] = "Invalid message\0";
+uint8_t Inv_msg[] = { 'I','n','v','a','l','i','d','-','m','e','s','s','a','g','e','\0'};
+
+uint8_t Tx_msg1[] = { '-','-','-','-','-','-','-','R','e','q','u','e','s','t','1','\0'};
+uint8_t Tx_msg2[] = { '-','-','-','-','-','-','-','R','e','q','u','e','s','t','2','\0'};
+uint8_t Tx_msg3[] = { '-','-','-','-','-','-','-','R','e','q','u','e','s','t','3','\0'};
+uint8_t Tx_msg4[] = { '-','-','-','-','-','-','-','R','e','q','u','e','s','t','4','\0'};
+
 /*-----------------------------------------------------------------------------------*/
 static void
 tcpecho_thread(void *arg)
@@ -87,43 +93,43 @@ tcpecho_thread(void *arg)
         /*printf("Recved\n");*/
         do {
              netbuf_data(buf, &data, &len);
-             PRINTF("Received (enc): %u bytes: %.2x \n", len, (uint8_t*)data);					// Rx:Encriptado
+             PRINTF("Received (enc): %u bytes: %.2x \n", len, (uint8_t*)data);						// Rx:Encriptado
              AES_ECB_decrypt(&ctx, data);	// AES128
-             PRINTF("Received (dec): %u bytes: %s \n", len, (char*)data);						// Rx:Desencriptado					// Rx:Desencriptado
-             if("-------Request1\0" == (char*)data)
+             PRINTF("Received (dec): %u bytes: %s \n", len, (char*)data);							// Rx:Desencriptado
+             if(strcmp(Tx_msg1,(char*)data) == 0)
              {
             	 PRINTF("Sent (dec): %u bytes: %s \n", sizeof(Rx_msg1), (char*)Rx_msg1);			// Tx:Desencriptado
-                 AES_ECB_encrypt(&ctx, Rx_msg1);	// AES128
-                 err = netconn_write(newconn, Rx_msg1, sizeof(Rx_msg1), NETCONN_COPY);
+            	 AES_ECB_encrypt(&ctx, Rx_msg1);	// AES128
+            	 err = netconn_write(newconn, Rx_msg1, sizeof(Rx_msg1), NETCONN_COPY);
+            	 PRINTF("Sent (enc): %u bytes: %.2x \n", sizeof(Rx_msg1), (uint8_t*)Rx_msg1);		// Tx:Encriptado
              }
-             else if("-------Request2\0" == (char*)data)
+             else if(strcmp(Tx_msg2,(char*)data) == 0)
              {
             	 PRINTF("Sent (dec): %u bytes: %s \n", sizeof(Rx_msg2), (char*)Rx_msg2);			// Tx:Desencriptado
                  AES_ECB_encrypt(&ctx, Rx_msg2);	// AES128
                  err = netconn_write(newconn, Rx_msg2, sizeof(Rx_msg2), NETCONN_COPY);
+                 PRINTF("Sent (enc): %u bytes: %.2x \n", sizeof(Rx_msg2), (uint8_t*)Rx_msg2);		// Tx:Encriptado
              }
-             else if("-------Request3\0" == (char*)data)
+             else if(strcmp(Tx_msg3,(char*)data) == 0)
              {
                  PRINTF("Sent (dec): %u bytes: %s \n", sizeof(Rx_msg3), (char*)Rx_msg3);			// Tx:Desencriptado
                  AES_ECB_encrypt(&ctx, Rx_msg3);	// AES128
                  err = netconn_write(newconn, Rx_msg3, sizeof(Rx_msg3), NETCONN_COPY);
+                 PRINTF("Sent (enc): %u bytes: %.2x \n", sizeof(Rx_msg3), (uint8_t*)Rx_msg3);		// Tx:Encriptado
              }
-             else if("-------Request4\0" == (char*)data)
+             else if(strcmp(Tx_msg4,(char*)data) == 0)
              {
                  PRINTF("Sent (dec): %u bytes: %s \n", sizeof(Rx_msg4), (char*)Rx_msg4);			// Tx:Desencriptado
                  AES_ECB_encrypt(&ctx, Rx_msg4);	// AES128
                  err = netconn_write(newconn, Rx_msg4, sizeof(Rx_msg4), NETCONN_COPY);
+                 PRINTF("Sent (enc): %u bytes: %.2x \n", sizeof(Rx_msg4), (uint8_t*)Rx_msg4);		// Tx:Encriptado
              }
              else
              {
                  PRINTF("Sent (dec): %u bytes: %s \n", sizeof(Inv_msg), (char*)Inv_msg);			// Tx:Desencriptado
                  AES_ECB_encrypt(&ctx, Inv_msg);	// AES128
                  err = netconn_write(newconn, Inv_msg, sizeof(Inv_msg), NETCONN_COPY);
-             }
-
-             if(err == ERR_OK)
-             {
-            	PRINTF("Sent (enc): %u bytes: %.2x \n", sizeof(Rx_msg1), (uint8_t*)Rx_msg1);	// Tx:Encriptado
+                 PRINTF("Sent (enc): %u bytes: %.2x \n", sizeof(Inv_msg), (uint8_t*)Inv_msg);		// Tx:Encriptado
              }
 
 #if 0
